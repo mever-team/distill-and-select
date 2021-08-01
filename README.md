@@ -33,11 +33,12 @@ conda install --file requirements.txt
     * [CC_WEB_VIDEO](https://mever.iti.gr/distill-and-select/features/cc_web_video.hdf5) (31 GB)
     * [SVD](https://mever.iti.gr/distill-and-select/features/svd.hdf5) (150 GB)
     * [EVVE](https://mever.iti.gr/distill-and-select/features/evve.hdf5) (9 GB)
+    * [VCDB](https://mever.iti.gr/distill-and-select/features/vcdb.hdf5) (118 GB)
     
 * All feature files are in HDF5 format
 
 ## Distillation
-* We provide code for training and evaluation of our student models 
+* We provide the code for training and evaluation of our student models 
 
 ### Student training
 
