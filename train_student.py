@@ -125,7 +125,7 @@ if __name__ == '__main__':
     # Student network options
     parser.add_argument('--student_type', type=str, default='fine-grained', choices=['fine-grained', 'coarse-grained'], 
                         help='Type of the student network.')
-    parser.add_argument('--attention', type=utils.bool_flag, default=True, 
+    parser.add_argument('--attention', type=utils.bool_flag, default=False, 
                         help='Boolean flag indicating whether an Attention layer will be used. Aplicable for both Student types.')
     parser.add_argument('--binarization', type=utils.bool_flag, default=False, 
                         help='Boolean flag indicating whether a Binarization layer will be used. Aplicable only for Fine-grained Students.')
