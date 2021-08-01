@@ -172,6 +172,8 @@ if __name__ == '__main__':
         model.load_state_dict(d['model'])
     else:
         if args.student_type == 'fine-grained':
+            if not args.attention and not args.binarization:
+                raise Exception('No pretrained network for the given inputs. Provide either `--attention` or `--binarization` arguments as true for the pretrained fine-grained students.')
             model = FineGrainedStudent(attention=args.attention, 
                                        binarization=args.binarization,
                                        pretrained=True)

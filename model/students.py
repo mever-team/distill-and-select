@@ -1,5 +1,4 @@
 import time
-import utils
 import torch
 import numpy as np
 import torch.nn as nn
@@ -194,12 +193,23 @@ class FineGrainedStudent(nn.Module):
         return sim, sim_mask
                 
     def calculate_video_similarity(self, query, target, query_mask=None, target_mask=None):
-        query, query_mask = utils.expand_dims(query, query_mask)
-        target, target_mask = utils.expand_dims(target, target_mask)
+        
+        def check_dims(features, mask=None, ndims=4, axis=0):
+            while features.ndim < ndims:
+                features = features.unsqueeze(axis)
+                if mask is not None:
+                    mask = mask.unsqueeze(axis)
+            return features, mask
+    
+        query, query_mask = check_dims(query, query_mask)
+        target, target_mask = check_dims(target, target_mask)
+        
         sim, sim_mask = self.frame_to_frame_similarity(query, target, query_mask, target_mask)
+        
         sim, sim_mask = self.visil_head(sim, sim_mask)
         sim = self.htanh(sim)
         sim = self.v2v_sim(sim, sim_mask)
+        
         return sim.view(query.shape[0], target.shape[0])
     
     def index_video(self, x, mask=None):

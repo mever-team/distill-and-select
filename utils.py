@@ -4,14 +4,6 @@ import torch
 import argparse
 import numpy as np
 
-
-def expand_dims(video, video_mask=None, ndims=4, axis=0):
-    while video.ndim < ndims:
-        video = video.unsqueeze(axis)
-        if video_mask is not None:
-            video_mask = video_mask.unsqueeze(axis)
-    return video, video_mask
-    
     
 def collate_train(batch):
     anchors, positives, negatives, similarities = zip(*batch)
