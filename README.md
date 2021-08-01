@@ -37,7 +37,43 @@ conda install --file requirements.txt
 * All feature files are in HDF5 format
 
 ## Distillation
-*TODO*
+* We provide code for training and evaluation of our student models 
+
+### Student training
+
+* To train a fine-grained student, run the `train_student.py` given `fine-grained` as value to the `--student_type` argument, as in the following command:
+```bash
+python train_student.py --student_type fine-grained --experiment_path experiments/DnS_students --trainset_hdf5 /path/to/dns_100k.hdf5
+```
+
+* You can train an attention or binarization fine-grained students by setting either the `--attention` or `--binarization` flags to `true`, respectively:
+```bash
+python train_student.py --student_type fine-grained --binarization true --experiment_path /path/to/experiment/ --trainset_hdf5 /path/to/dns_100k.hdf5
+```
+
+* To train a coarse-grained students, provide `coarse-grained` to the `--student_type` argument:
+```bash
+python train_student.py --student_type coarse-grained --experiment_path /path/to/experiment/ --trainset_hdf5 /path/to/dns_100k.hdf5
+```
+
+* Provide one of the `teacher`, `fg_att_student_iter1`, `fg_att_student_iter2` to the `--teacher` argument in odrder to train a student with a different teacher:
+```bash
+python train_student.py --teacher fg_att_student_iter2 --experiment_path /path/to/experiment/ --trainset_hdf5 /path/to/dns_100k.hdf5
+```
+
+### Evaluation
+* Choose one of the `FIVR-5K`, `FIVR-200K`, `CC_WEB_VIDEO`, `SVD`, or `EVVE` datasets to evaluate your models.
+
+* For the evaluation of the students, run the `evaluation.py` script by providing the path to the `.pth` model to the `--student_path` argument, as in the following command:
+```bash
+python evaluation.py --student_path experiments/DnS_students/model_fg_att_student.pth --dataset FIVR-5K --dataset_hdf5 /path/to/fivr_200k.hdf5 --load_queries true
+```
+
+* If you don't pass any value to the `--student_path`, a pretrained model will be selected:
+```bash
+python evaluation.py --student_type fine-grained --attention true --dataset FIVR-5K --dataset_hdf5 /path/to/fivr_200k.hdf5 --load_queries true
+```
+
 
 ## Selection
 *TODO*
@@ -54,6 +90,9 @@ If you use this code for your research, please cite our paper.
 ```
 ## Related Projects
 **[ViSiL](https://github.com/MKLab-ITI/visil)** **[FIVR-200K](https://github.com/MKLab-ITI/FIVR-200K)**
+
+## Acknowledgements
+This work has been supported by the projects WeVerify and MediaVerse, partially funded by the European Commission under contract number 825297 and 957252, respectively, and DECSTER funded by EPSRC under contract number EP/R025290/1.
 
 ## License
 This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details
