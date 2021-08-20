@@ -79,15 +79,16 @@ class RMAC(nn.Module):
     
 class PCA(nn.Module):
     
-    def __init__(self, file, n_components=None):
+    def __init__(self, n_components=None):
         super(PCA, self).__init__()
-        white = np.load(file)
-        idx = np.argsort(white['d'])[::-1][: n_components]
+        pretrained_url = 'http://ndd.iti.gr/visil/pca_resnet50_vcdb_1M.pth'
+        white = torch.hub.load_state_dict_from_url(pretrained_url)
+        idx = torch.argsort(white['d'], descending=True)[: n_components]
         d = white['d'][idx]
         V = white['V'][:, idx]
-        D = np.diag(1. / np.sqrt(d + 1e-7))
-        self.mean = nn.Parameter(torch.from_numpy(white['mean'].astype(np.float32)), requires_grad=False)
-        self.DVt = nn.Parameter(torch.from_numpy(np.dot(D, V.T).T.astype(np.float32)), requires_grad=False)
+        D = torch.diag(1. / torch.sqrt(d + 1e-7))
+        self.mean = nn.Parameter(white['mean'], requires_grad=False)
+        self.DVt = nn.Parameter(torch.mm(D, V.T).T, requires_grad=False)
         
     def forward(self, logits):
         logits -= self.mean.expand_as(logits)
@@ -137,8 +138,8 @@ class BinarizationLayer(nn.Module):
     def __init__(self, dims, bits=None, ITQ_init=True):
         super(BinarizationLayer, self).__init__()
         if ITQ_init:
-            W = np.load('model/itq.npz')['proj']
-            self.W = nn.Parameter(torch.from_numpy(W.astype(np.float32)))
+            pretrained_url = 'https://mever.iti.gr/distill-and-select/models/itq_resnet50W_dns100k_1M.pth'
+            self.W = nn.Parameter(torch.hub.load_state_dict_from_url(pretrained_url)['proj'])
         else:
             if bits is None:
                 bits = dims
