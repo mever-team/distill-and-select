@@ -95,8 +95,14 @@ python train_selector.py --experiment_path experiments/DnS_students --trainset_h
 python evaluation_dns.py --selector_network_path experiments/DnS_students/model_selector_network.pth --dataset FIVR-5K --dataset_hdf5 /path/to/fivr_200k.hdf5
 ```
 
+* If you don't pass any value to the network path argument, then the pretrained model will be selected. E.g. to evalute DnS with the Fine-grained Attention Student:
+```bash
+python evaluation_dns.py --attention true --dataset FIVR-5K --dataset_hdf5 /path/to/fivr_200k.hdf5
+```
+
 * Provide different values to `--percentage` argument to sent different number of video pairs for reranking to the Fine-grained student. 
 Given the value `all`, it runs evaluation for all dataset percentages.
+
 
 ## Use our pretrained models
 * Load our pretrained models as follows:
