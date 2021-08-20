@@ -17,6 +17,7 @@ class VideoNormalizer(nn.Module):
         self.std = nn.Parameter(torch.Tensor([0.229, 0.224, 0.225]), requires_grad=False)
 
     def forward(self, video):
+        video = video.float()
         video = ((video / self.scale) - self.mean) / self.std
         return video.permute(0, 3, 1, 2)
 
