@@ -1,8 +1,6 @@
 import torch
-import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
-import torchvision.models as models
 
 from model.layers import *
 from model.losses import SimilarityRegularizationLoss
@@ -14,43 +12,6 @@ model_urls = {
     'dns_fg_att_student': 'https://mever.iti.gr/distill-and-select/models/dns_fg_att_student.pth',
     'dns_fg_bin_student': 'https://mever.iti.gr/distill-and-select/models/dns_fg_bin_student.pth',
 }
-
-
-class Feature_Extractor(nn.Module):
-
-    def __init__(self, network='resnet50', whiteninig=False, dims=3840):
-        super(Feature_Extractor, self).__init__()
-        self.normalizer = VideoNormalizer()
-        
-        self.cnn = models.resnet50(pretrained=True)
-        
-        self.rpool = RMAC()
-        self.layers = {'layer1': 28, 'layer2': 14, 'layer3': 6, 'layer4': 3}
-        if whiteninig or dims != 3840:
-            self.pca = PCA(dims)
-
-    def extract_region_vectors(self, x):
-        tensors = []
-        for nm, module in self.cnn._modules.items():
-            if nm not in {'avgpool', 'fc', 'classifier'}:
-                x = module(x).contiguous()
-                if nm in self.layers:
-                    # region_vectors = self.rpool(x)
-                    s = self.layers[nm]
-                    region_vectors = F.max_pool2d(x, [s, s], int(np.ceil(s / 2)))
-                    region_vectors = F.normalize(region_vectors, p=2, dim=1)
-                    tensors.append(region_vectors)
-        x = torch.cat(tensors, 1)
-        x = x.view(x.shape[0], x.shape[1], -1).permute(0, 2, 1)
-        x = F.normalize(x, p=2, dim=-1)
-        return x
-    
-    def forward(self, x):
-        x = self.normalizer(x)
-        x = self.extract_region_vectors(x)
-        if hasattr(self, 'pca'):
-            x = self.pca(x)
-        return x
 
 
 class CoarseGrainedStudent(nn.Module):
@@ -66,7 +27,6 @@ class CoarseGrainedStudent(nn.Module):
                  netvlad_clusters=64,
                  netvlad_outdims=1024,
                  pretrained=False,
-                 include_cnn=False,
                  **kwargs
                  ):
         super(CoarseGrainedStudent, self).__init__()
@@ -88,9 +48,6 @@ class CoarseGrainedStudent(nn.Module):
             self.load_state_dict(
                 torch.hub.load_state_dict_from_url(
                     model_urls['dns_cg_student'])['model'])
-        
-        if include_cnn:
-            self.cnn = Feature_Extractor('resnet50', True, dims)
     
     def get_network_name(self,):
         return '{}_student'.format(self.student_type)
@@ -99,8 +56,6 @@ class CoarseGrainedStudent(nn.Module):
         return torch.mm(query, torch.transpose(target, 0, 1))
     
     def index_video(self, x, mask=None):
-        if hasattr(self, 'cnn'):
-            x = self.cnn(x.float())
             
         if hasattr(self, 'attention'):
             x, a = self.attention(x)
@@ -138,7 +93,6 @@ class FineGrainedStudent(nn.Module):
                  attention=False,
                  binarization=False,
                  pretrained=False,
-                 include_cnn=False,
                  **kwargs
                  ):
         super(FineGrainedStudent, self).__init__()
@@ -163,9 +117,6 @@ class FineGrainedStudent(nn.Module):
             self.load_state_dict(
                 torch.hub.load_state_dict_from_url(
                     model_urls['dns_fg_{}_student'.format(self.fg_type)])['model'])
-            
-        if include_cnn:
-            self.cnn = Feature_Extractor('resnet50', True, dims)
             
     def get_network_name(self,):
         return '{}_{}_student'.format(self.student_type, self.fg_type)
@@ -212,9 +163,6 @@ class FineGrainedStudent(nn.Module):
         return sim.view(query.shape[0], target.shape[0])
     
     def index_video(self, x, mask=None):
-        if hasattr(self, 'cnn'):
-            x = self.cnn(x.float())
-            
         if self.fg_type == 'bin':
             x = self.binarization(x)
         elif self.fg_type == 'att':
