@@ -1,12 +1,7 @@
-import os
-import h5py
-import glob
-import torch
 import numpy as np
 import pickle as pk
 
 from collections import OrderedDict
-from torch.utils.data import Dataset
 from sklearn.metrics import average_precision_score
         
 
@@ -16,8 +11,9 @@ class CC_WEB_VIDEO(object):
         with open('datasets/cc_web_video.pickle', 'rb') as f:
             dataset = pk.load(f)
         self.name = 'CC_WEB_VIDEO'
-        self.database = dataset['index']
-        self.queries = dataset['queries']
+        self.index = dataset['index']
+        self.queries = list(dataset['queries'])
+        self.database = sorted(list(map(str, self.index.keys())))
         self.ground_truth = dataset['ground_truth']
         self.excluded = dataset['excluded']
         
@@ -25,18 +21,20 @@ class CC_WEB_VIDEO(object):
         return self.queries
 
     def get_database(self):
-        return list(map(str, self.database.keys()))
+        return self.database
 
-    def calculate_mAP(self, similarities, all_videos=False, clean=False, positive_labels='ESLMV'):
+    def calculate_mAP(self, similarities, all_db, all_videos=False, clean=False, positive_labels='ESLMV'):
         mAP = 0.0
         for query_set, labels in enumerate(self.ground_truth):
             query_id = self.queries[query_set]
             i, ri, s = 0.0, 0.0, 0.0
             if query_id in similarities:
                 res = similarities[query_id]
+                if isinstance(res, (np.ndarray, np.generic)):
+                    res = {v: s for v, s in zip(self.database, res) if v in all_db}
                 for video_id in sorted(res.keys(), key=lambda x: res[x], reverse=True):
-                    if video_id not in self.database: continue
-                    video = self.database[video_id]
+                    if video_id not in self.index: continue
+                    video = self.index[video_id]
                     if (all_videos or video in labels) and (not clean or video not in self.excluded[query_set]):
                         ri += 1
                         if video in labels and labels[video] in positive_labels:
@@ -49,7 +47,7 @@ class CC_WEB_VIDEO(object):
 
     def evaluate(self, similarities, all_db=None, verbose=True):
         if all_db is None:
-            all_db = self.database
+            all_db = set(self.database)
 
         if verbose:
             print('=' * 5, 'CC_WEB_VIDEO Dataset', '=' * 5)
@@ -59,15 +57,15 @@ class CC_WEB_VIDEO(object):
             print('Queries: {} videos'.format(len(similarities)))
             print('Database: {} videos'.format(len(all_db)))
 
-        mAP = self.calculate_mAP(similarities, all_videos=False, clean=False)
-        mAP_star = self.calculate_mAP(similarities, all_videos=True, clean=False)
+        mAP = self.calculate_mAP(similarities, all_db, all_videos=False, clean=False)
+        mAP_star = self.calculate_mAP(similarities, all_db, all_videos=True, clean=False)
         if verbose:
             print('-' * 25)
             print('All dataset')
             print('CC_WEB mAP: {:.4f}\nCC_WEB* mAP: {:.4f}\n'.format(mAP, mAP_star))
 
-        mAP_c = self.calculate_mAP(similarities, all_videos=False, clean=True)
-        mAP_c_star = self.calculate_mAP(similarities, all_videos=True, clean=True)
+        mAP_c = self.calculate_mAP(similarities, all_db, all_videos=False, clean=True)
+        mAP_c_star = self.calculate_mAP(similarities, all_db, all_videos=True, clean=True)
         if verbose:
             print('Clean dataset')
             print('CC_WEB mAP: {:.4f}\nCC_WEB* mAP: {:.4f}'.format(mAP_c, mAP_c_star))
@@ -83,14 +81,14 @@ class FIVR(object):
             dataset = pk.load(f)
         self.name = 'FIVR'
         self.annotation = dataset['annotation']
-        self.queries = dataset[self.version]['queries']
-        self.database = dataset[self.version]['database']
+        self.queries = sorted(list(dataset[self.version]['queries']))
+        self.database = sorted(list(dataset[self.version]['database']))
 
     def get_queries(self):
         return self.queries
 
     def get_database(self):
-        return list(self.database)
+        return self.database
 
     def calculate_mAP(self, query, res, all_db, relevant_labels):
         gt_sets = self.annotation[query]
@@ -116,6 +114,8 @@ class FIVR(object):
             DSVR, CSVR, ISVR = [], [], []
             for query, res in similarities.items():
                 if query in self.queries:
+                    if isinstance(res, (np.ndarray, np.generic)):
+                        res = {v: s for v, s in zip(self.database, res) if v in all_db}
                     DSVR.append(self.calculate_mAP(query, res, all_db, relevant_labels=['ND', 'DS']))
                     CSVR.append(self.calculate_mAP(query, res, all_db, relevant_labels=['ND', 'DS', 'CS']))
                     ISVR.append(self.calculate_mAP(query, res, all_db, relevant_labels=['ND', 'DS', 'CS', 'IS']))            
@@ -159,17 +159,17 @@ class EVVE(object):
             dataset = pk.load(f)
         self.name = 'EVVE'
         self.events = dataset['annotation']
-        self.queries = dataset['queries']
-        self.database = dataset['database']
+        self.queries = sorted(list(dataset['queries']))
+        self.database = sorted(list(dataset['database']))
         self.query_to_event = {qname: evname
                                for evname, (queries, _, _) in self.events.items()
                                for qname in queries}
 
     def get_queries(self):
-        return list(self.queries)
+        return self.queries
 
     def get_database(self):
-        return list(self.database)
+        return self.database
 
     def score_ap_from_ranks_1(self, ranks, nres):
         """ Compute the average precision of one search.
@@ -209,6 +209,8 @@ class EVVE(object):
                 not_found += 1
             else:
                 res = similarities[query]
+                if isinstance(res, (np.ndarray, np.generic)):
+                    res = {v: s for v, s in zip(self.database, res) if v in all_db}
                 evname = self.query_to_event[query]
                 _, pos, null = self.events[evname]
                 if all_db:
@@ -243,8 +245,7 @@ class EVVE(object):
         if verbose:
             print('=' * 50)
             print('overall mAP = {:.4f}'.format(np.mean(ap)))
-            print('avg mAP = {:.4f}'.format(np.mean(mAP)))
-        return {'avg-mAP': np.mean(mAP), 'over-mAP': np.mean(ap)}
+        return {'mAP': np.mean(ap)}
 
 
 class SVD(object):
@@ -258,8 +259,9 @@ class SVD(object):
         self.database = []
         for k, v in self.ground_truth.items():
             self.database.extend(list(map(str, v.keys())))
+        self.queries = sorted(list(map(str, self.ground_truth.keys())))            
         self.database += self.unlabeled_keys
-        self.database_idxs = {d: i for i, d in enumerate(self.database)}
+        self.database = sorted(self.database)
 
     def load_groundtruth(self, filepath):
         gnds = OrderedDict()
@@ -283,7 +285,7 @@ class SVD(object):
         return videos
 
     def get_queries(self):
-        return list(map(str, self.ground_truth.keys()))
+        return self.queries
 
     def get_database(self):
         return self.database
@@ -293,17 +295,18 @@ class SVD(object):
         not_found = len(self.ground_truth.keys() - similarities.keys())
         for query, targets in self.ground_truth.items():
             y_true, y_score = [], []
+            res = similarities[query]
+            if isinstance(res, (np.ndarray, np.generic)):
+                res = {v: s for v, s in zip(self.database, res) if v in all_db}
             for target, label in targets.items():
                 if target in all_db:
-                    # s = similarities[query][self.database_idxs[target]]
-                    s = similarities[query][target]
+                    s = res[target]
                     y_true.append(label)
                     y_score.append(s)
 
             for target in self.unlabeled_keys:
                 if target in all_db:
-                    # s = similarities[query][self.database_idxs[target]]
-                    s = similarities[query][target]
+                    s = res[target]
                     y_true.append(0)
                     y_score.append(s)
             mAP.append(average_precision_score(y_true, y_score))
