@@ -92,7 +92,7 @@ python train_selector.py --experiment_path experiments/DnS_students --trainset_h
 
 * For the evaluation of the DnS framework, run the `evaluation_dns.py` script by providing the path to the `.pth` model to the corresponding network arguments, as in the following command:
 ```bash
-python evaluation_student.py --selector_network_path experiments/DnS_students/model_selector_network.pth --dataset FIVR-5K --dataset_hdf5 /path/to/fivr_200k.hdf5
+python evaluation_dns.py --selector_network_path experiments/DnS_students/model_selector_network.pth --dataset FIVR-5K --dataset_hdf5 /path/to/fivr_200k.hdf5
 ```
 
 * Provide different values to `--percentage` argument to sent different number of video pairs for reranking to the Fine-grained student. 
