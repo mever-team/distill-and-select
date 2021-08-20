@@ -119,7 +119,7 @@ fg_att_student = FineGrainedStudent(pretrained=True, attention=True)
 fg_bin_student = FineGrainedStudent(pretrained=True, binarization=True)
 
 # Our Coarse-grained Students
-cg_student = FineGrainedStudent(pretrained=True)
+cg_student = CoarseGrainedStudent(pretrained=True)
 
 # Our Selector Networks
 selector_att = SelectorNetwork(pretrained=True, attention=True)
