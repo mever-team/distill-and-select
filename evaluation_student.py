@@ -36,7 +36,6 @@ def query_vs_target(model, dataset, args):
     print('\n> Extract features of the query videos')
     for video in tqdm(loader):
         video_features = video[0][0]
-        video_mask = video[1][0]
         video_id = video[2][0]
         if video_id:
             features = model.index_video(video_features.to(args.gpu_id))
@@ -54,7 +53,6 @@ def query_vs_target(model, dataset, args):
     print('\n> Calculate query-target similarities')
     for video in tqdm(loader):
         video_features = video[0][0]
-        video_mask = video[1][0]
         video_id = video[2][0]
         if video_id:
             features = model.index_video(video_features.to(args.gpu_id))
@@ -71,7 +69,7 @@ def query_vs_target(model, dataset, args):
 def queries_vs_database(model, dataset, args):
     # Create a video generator for the queries
     generator = DatasetGenerator(args.dataset_hdf5, dataset.get_queries())
-    loader = DataLoader(generator, batch_size=8, num_workers=args.workers, collate_fn=utils.collate_eval)
+    loader = DataLoader(generator, batch_size=args.batch_sz, num_workers=args.workers, collate_fn=utils.collate_eval)
 
     # Extract features of the queries
     all_db, queries, queries_ids = set(), [], []
@@ -90,7 +88,7 @@ def queries_vs_database(model, dataset, args):
     
     # Create a video generator for the database video
     generator = DatasetGenerator(args.dataset_hdf5, dataset.get_database())
-    loader = DataLoader(generator, batch_size=8, num_workers=args.workers, collate_fn=utils.collate_eval)
+    loader = DataLoader(generator, batch_size=args.batch_sz, num_workers=args.workers, collate_fn=utils.collate_eval)
     
     # Extract features of the targets
     targets, targets_ids = [], []
@@ -141,7 +139,7 @@ if __name__ == '__main__':
     parser.add_argument('--gpu_id', type=int, default=0,
                         help='ID of the GPU used for the student evaluation.')
     parser.add_argument('--load_queries', type=utils.bool_flag, default=True,
-                        help='Boolean flag indicating whether the queries will be loaded to the GPU memory. Aplicable only for Fine-grained Students.')
+                        help='Boolean flag indicating whether the query features will be loaded to the GPU memory. Aplicable only for Fine-grained Students.')
     parser.add_argument('--workers', type=int, default=8,
                         help='Number of workers used for video loading.')
     args = parser.parse_args()

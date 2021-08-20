@@ -38,7 +38,7 @@ conda install --file requirements.txt
 * All feature files are in HDF5 format
 
 ## Distillation
-* We provide the code for training and evaluation of our student models 
+We provide the code for training and evaluation of our student models 
 
 ### Student training
 
@@ -67,12 +67,12 @@ python train_student.py --teacher fg_att_student_iter2 --experiment_path /path/t
 
 * For the evaluation of the students, run the `evaluation.py` script by providing the path to the `.pth` model to the `--student_path` argument, as in the following command:
 ```bash
-python evaluation.py --student_path experiments/DnS_students/model_fg_att_student.pth --dataset FIVR-5K --dataset_hdf5 /path/to/fivr_200k.hdf5 --load_queries true
+python evaluation_student.py --student_path experiments/DnS_students/model_fg_att_student.pth --dataset FIVR-5K --dataset_hdf5 /path/to/fivr_200k.hdf5 --load_queries true
 ```
 
 * If you don't pass any value to the `--student_path`, a pretrained model will be selected:
 ```bash
-python evaluation.py --student_type fine-grained --attention true --dataset FIVR-5K --dataset_hdf5 /path/to/fivr_200k.hdf5 --load_queries true
+python evaluation_student.py --student_type fine-grained --attention true --dataset FIVR-5K --dataset_hdf5 /path/to/fivr_200k.hdf5 --load_queries true
 ```
 
 

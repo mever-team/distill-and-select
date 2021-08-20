@@ -3,9 +3,12 @@ import cv2
 import torch
 import argparse
 import numpy as np
+import pickle as pk
+
+from sklearn.model_selection import train_test_split
 
     
-def collate_train(batch):
+def collate_student(batch):
     anchors, positives, negatives, similarities = zip(*batch)
     videos = anchors + positives + negatives
     num = len(videos)
@@ -21,6 +24,25 @@ def collate_train(batch):
 
     similarities = torch.cat(similarities, 0)
     return padded_videos, masks, similarities
+
+
+def collate_selector(batch):
+    queries, targes, similarities, labels = zip(*batch)
+    videos = queries + targes
+    num = len(videos)
+    max_len = max([s.size(0) for s in videos])
+    max_reg = max([s.size(1) for s in videos])
+    
+    padded_videos = videos[0].data.new(*(num, max_len, max_reg, 512)).fill_(0)
+    masks = videos[0].data.new(*(num, max_len)).fill_(0)
+    for i, tensor in enumerate(videos):
+        length = tensor.size(0)
+        padded_videos[i, :length] = tensor
+        masks[i, :length] = 1
+
+    similarities = torch.cat(similarities, 0)
+    labels = torch.cat(labels, 0)
+    return padded_videos, masks, similarities, labels
 
 
 def collate_eval(batch):
@@ -49,7 +71,7 @@ def save_model(args, model, optimizer, global_step):
     if not os.path.exists(args.experiment_path):
         os.makedirs(args.experiment_path)
     torch.save(d, os.path.join(args.experiment_path, 'model_{}.pth'.format(
-        model.get_student_type())))
+        model.get_network_name())))
 
     
 def bool_flag(s):
@@ -109,3 +131,38 @@ def load_video(video, all_frames=False, fps=1, cc_size=None, rs_size=None):
     if cc_size is not None:
         frames = center_crop(frames, cc_size)
     return frames
+
+
+def generate_selector_dataset(threshold, val_size=0.03, coarse_student='cg_student', fine_student='fg_att_student'):
+    
+    with open('data/trainset_similarities_{}_iter2.pk'.format(fine_student), 'rb') as f:
+        pickle_file = pk.load(f)
+        index = pickle_file['index']
+        similarities_fine = pickle_file['pairs']
+    with open('data/trainset_similarities_{}_iter2.pk'.format(coarse_student), 'rb') as f:
+        similarities_coarse = pk.load(f)['pairs']
+    
+    X, y = [], []
+    for query, pair_pools in similarities_fine.items():
+        for pos in pair_pools['positives']:
+            sim_fine = similarities_fine[query]['positives'][pos] / 2. + 0.5
+            sim_coarse = similarities_coarse[query]['positives'][pos]
+            
+            x = [index[query], index[pos], sim_coarse]
+            X.append(np.array(x))
+            
+            l = 1 if np.abs(sim_fine - sim_coarse) > threshold else 0
+            y.append(l)
+        for neg in pair_pools['negatives']:
+            sim_fine = similarities_fine[query]['negatives'][neg] / 2. + 0.5
+            sim_coarse = similarities_coarse[query]['negatives'][neg]
+            
+            x = [index[query], index[neg], sim_coarse]
+            X.append(np.array(x))
+            
+            l = 1 if np.abs(sim_fine - sim_coarse) > threshold else 0
+            y.append(l)
+
+    X = np.array(X)
+    y = np.array(y, dtype=np.float32)
+    return train_test_split(X, y, test_size=val_size, random_state=42)

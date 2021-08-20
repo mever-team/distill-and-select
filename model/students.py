@@ -1,4 +1,3 @@
-import time
 import torch
 import numpy as np
 import torch.nn as nn
@@ -28,7 +27,7 @@ class Feature_Extractor(nn.Module):
         self.rpool = RMAC()
         self.layers = {'layer1': 28, 'layer2': 14, 'layer3': 6, 'layer4': 3}
         if whiteninig or dims != 3840:
-            self.pca = PCA('model/pca.npz', dims)
+            self.pca = PCA(dims)
 
     def extract_region_vectors(self, x):
         tensors = []
@@ -69,7 +68,7 @@ class CoarseGrainedStudent(nn.Module):
                  pretrained=False,
                  include_cnn=False,
                  **kwargs
-                ):
+                 ):
         super(CoarseGrainedStudent, self).__init__()
         self.student_type = 'cg'
         
@@ -93,7 +92,7 @@ class CoarseGrainedStudent(nn.Module):
         if include_cnn:
             self.cnn = Feature_Extractor('resnet50', True, dims)
     
-    def get_student_type(self,):
+    def get_network_name(self,):
         return '{}_student'.format(self.student_type)
 
     def calculate_video_similarity(self, query, target):
@@ -141,7 +140,7 @@ class FineGrainedStudent(nn.Module):
                  pretrained=False,
                  include_cnn=False,
                  **kwargs
-                ):
+                 ):
         super(FineGrainedStudent, self).__init__()
         self.student_type = 'fg'
         if binarization:
@@ -168,7 +167,7 @@ class FineGrainedStudent(nn.Module):
         if include_cnn:
             self.cnn = Feature_Extractor('resnet50', True, dims)
             
-    def get_student_type(self,):
+    def get_network_name(self,):
         return '{}_{}_student'.format(self.student_type, self.fg_type)
     
     def frame_to_frame_similarity(self, query, target, query_mask=None, target_mask=None, batched=False):

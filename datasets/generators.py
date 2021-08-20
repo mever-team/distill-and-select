@@ -1,4 +1,3 @@
-import os
 import h5py
 import torch
 import random
@@ -6,7 +5,6 @@ import numpy as np
 import pickle as pk
 
 from torch.utils.data import Dataset
-from skimage.transform import resize
 
         
 class DatasetGenerator(torch.utils.data.Dataset):
@@ -26,16 +24,16 @@ class DatasetGenerator(torch.utils.data.Dataset):
                 features = np.concatenate([features, features], axis=0)
             if features.ndim == 2: 
                 features = np.expand_dims(features, 1)
-            return torch.from_numpy(features.astype(np.float32)), video_id
+            features = torch.from_numpy(features.astype(np.float32))
+            return features, video_id
         except Exception as e:
             return torch.zeros((1, 9, 512)), ''
 
-class VideoPairGenerator(Dataset):
+
+class StudentPairGenerator(Dataset):
 
     def __init__(self, args):
-        super(VideoPairGenerator, self).__init__()
-        print('\n> Create generator of video pairs')
-        print('>> loading pairs ...')
+        super(StudentPairGenerator, self).__init__()
         ground_truths = pk.load(open('data/trainset_similarities_{}.pk'.format(args.teacher), 'rb'))
         self.index = ground_truths['index']
         self.pairs = ground_truths['pairs']
@@ -91,10 +89,45 @@ class VideoPairGenerator(Dataset):
     def __len__(self):
         return len(self.selected_pairs)
 
-    def __getitem__(self, index):
-        pairs = self.selected_pairs[index]
+    def __getitem__(self, idx):
+        pairs = self.selected_pairs[idx]
         anchor = self.load_video(pairs[0])
         positive = self.load_video(pairs[1], augmentation=self.augmentation)
         negative = self.load_video(pairs[2], augmentation=self.augmentation)
-        simimarities = torch.tensor(pairs[3:])
-        return anchor, positive, negative, simimarities.unsqueeze(0)
+        simimarities = torch.tensor(pairs[3:]).unsqueeze(0)
+        return anchor, positive, negative, simimarities
+
+    
+class SelectorPairGenerator(Dataset):
+
+    def __init__(self, video_pairs, labels, args):
+        super(SelectorPairGenerator, self).__init__()
+        self.video_pairs = video_pairs
+        self.labels = labels
+        self.feature_file = h5py.File(args.trainset_hdf5, "r")
+        self.pairs = self.sample_pairs()
+    
+    def next_epoch(self, size=None):
+        self.pairs = self.sample_pairs(size)
+        
+    def sample_pairs(self, size=None):
+        unique, counts = np.unique(self.labels, return_counts=True)
+        if size is None or size > np.min(counts):
+            size = np.min(counts)
+
+        ids = []
+        for u in unique:
+            ids.extend(np.random.choice(np.where(self.labels == u)[0], size, replace=False).tolist())
+        return ids
+    
+    def __len__(self):
+        return len(self.pairs)
+
+    def __getitem__(self, idx):
+        idx = self.pairs[idx]
+        pair = self.video_pairs[idx]
+        query = torch.from_numpy(self.feature_file[pair[0]][:])
+        target = torch.from_numpy(self.feature_file[pair[1]][:])
+        similarity = torch.tensor([float(pair[2])])
+        label = torch.tensor(self.labels[idx]).unsqueeze(0)
+        return query, target, similarity, label

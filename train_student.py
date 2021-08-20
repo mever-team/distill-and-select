@@ -7,7 +7,7 @@ import torch.nn as nn
 
 from tqdm import tqdm
 from torch.utils.data import DataLoader
-from datasets.generators import VideoPairGenerator
+from datasets.generators import StudentPairGenerator
 from model.students import FineGrainedStudent, CoarseGrainedStudent
 
     
@@ -24,8 +24,10 @@ def main(args):
         else:
             if 'binar' not in k:
                 print('%s: %s' % (k, str(v)))
-      
-    dataset = VideoPairGenerator(args)
+
+    print('\n> Create generator of video pairs')
+    print('>> loading pairs...')
+    dataset = StudentPairGenerator(args)
     
     print('\n> Building network')
     if 'fine' in args.student_type:
@@ -44,9 +46,9 @@ def main(args):
     global_step = torch.zeros((1,))
     
     if args.load_model:
+        print('>> loading network')
         d = torch.load(os.path.join(args.experiment_name, 'model_{}.pth'.format(
-            model.get_student_type())), map_location='cpu')
-        print(model.get_student_type(), d.keys())
+            model.get_name())), map_location='cpu')
         model.load_state_dict(d['model'])
         if 'optimizer' in d:
             optimizer.load_state_dict(d['optimizer'])
@@ -54,14 +56,14 @@ def main(args):
             global_step = d.pop('global_step')
 
     print('\n> Start training')
-    for i in range(args.epochs):
+    for epoch in range(args.epochs):
         dataset.next_epoch()
         loader = DataLoader(dataset, num_workers=args.workers, 
                             shuffle=True, batch_size=args.batch_sz//2,
-                            collate_fn=utils.collate_train)
+                            collate_fn=utils.collate_student)
         
         tloss, dloss, rloss = [], [], []
-        pbar = tqdm(loader, desc='epoch {}'.format(i), unit='iter')
+        pbar = tqdm(loader, desc='epoch {}'.format(epoch), unit='iter')
         for pairs in pbar:
             optimizer.zero_grad()
 
@@ -151,7 +153,8 @@ if __name__ == '__main__':
                         help='Number of video pairs in each training batch.')
     parser.add_argument('--augmentation', type=utils.bool_flag, default=True,
                         help='Boolean flag indicating whether video temporal augmentations will be used.')
-    parser.add_argument('--epochs', type=int, default=300, help='epochs')
+    parser.add_argument('--epochs', type=int, default=300, 
+                        help='Number of epochs to train the student network.')
     parser.add_argument('--learning_rate', type=float, default=1e-4, 
                         help='Learning rate used during training')
     parser.add_argument('--weight_decay', type=float, default=0.,
@@ -159,5 +162,5 @@ if __name__ == '__main__':
     parser.add_argument('--r_parameter', type=float, default=1e-3, 
                         help='Parameter that determines the impact of similarity regularization loss')
     args = parser.parse_args()
-    main(args)
     
+    main(args)
