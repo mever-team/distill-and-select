@@ -38,7 +38,7 @@ conda install --file requirements.txt
 * All feature files are in HDF5 format
 
 ## Distillation
-We provide the code for training and evaluation of our student models 
+We provide the code for training and evaluation of our student models.
 
 ### Student training
 
@@ -62,22 +62,88 @@ python train_student.py --student_type coarse-grained --experiment_path /path/to
 python train_student.py --teacher fg_att_student_iter2 --experiment_path /path/to/experiment/ --trainset_hdf5 /path/to/dns_100k.hdf5
 ```
 
-### Evaluation
+### Student Evaluation
 * Choose one of the `FIVR-5K`, `FIVR-200K`, `CC_WEB_VIDEO`, `SVD`, or `EVVE` datasets to evaluate your models.
 
-* For the evaluation of the students, run the `evaluation.py` script by providing the path to the `.pth` model to the `--student_path` argument, as in the following command:
+* For the evaluation of the students, run the `evaluation_student.py` script by providing the path to the `.pth` model to the `--student_path` argument, as in the following command:
 ```bash
-python evaluation_student.py --student_path experiments/DnS_students/model_fg_att_student.pth --dataset FIVR-5K --dataset_hdf5 /path/to/fivr_200k.hdf5 --load_queries true
+python evaluation_student.py --student_path experiments/DnS_students/model_fg_att_student.pth --dataset FIVR-5K --dataset_hdf5 /path/to/fivr_200k.hdf5
 ```
 
 * If you don't pass any value to the `--student_path`, a pretrained model will be selected:
 ```bash
-python evaluation_student.py --student_type fine-grained --attention true --dataset FIVR-5K --dataset_hdf5 /path/to/fivr_200k.hdf5 --load_queries true
+python evaluation_student.py --student_type fine-grained --attention true --dataset FIVR-5K --dataset_hdf5 /path/to/fivr_200k.hdf5
 ```
 
 
 ## Selection
-*TODO*
+We also provide the code for training of the selector network and the evaluation of our overall DnS framework.
+
+### Selector training
+
+* To train a selector network, run the `train_selector.py` as in the following command:
+```bash
+python train_selector.py --experiment_path experiments/DnS_students --trainset_hdf5 /path/to/dns_100k.hdf5
+```
+
+* Provide different values to `--threshold` argument to train the selector network with different label functions.
+
+### DnS Evaluation
+
+* For the evaluation of the DnS framework, run the `evaluation_dns.py` script by providing the path to the `.pth` model to the corresponding network arguments, as in the following command:
+```bash
+python evaluation_student.py --selector_network_path experiments/DnS_students/model_selector_network.pth --dataset FIVR-5K --dataset_hdf5 /path/to/fivr_200k.hdf5
+```
+
+* Provide different values to `--percentage` argument to sent different number of video pairs for reranking to the Fine-grained student. 
+Given the value `all`, it runs evaluation for all dataset percentages.
+
+## Use our pretrained models
+* Load our pretrained models as follows:
+```python
+from model.feature_extractor import FeatureExtractor
+from model.students import FineGrainedStudent, CoarseGrainedStudent
+from model.selector import SelectorNetwork
+
+# The feature extraction network used in out experiments
+feature_extractor = FeatureExtractor(dims=512)
+
+# Our Fine-grained Students
+fg_att_student = FineGrainedStudent(pretrained=True, attention=True)
+fg_bin_student = FineGrainedStudent(pretrained=True, binarization=True)
+
+# Our Coarse-grained Students
+cg_student = FineGrainedStudent(pretrained=True)
+
+# Our Selector Networks
+selector_att = SelectorNetwork(pretrained=True, attention=True)
+selector_bin = SelectorNetwork(pretrained=True, binarization=True)
+```
+
+* First, extract video features by providing a video tensor to feature extractor (similar as [here](https://github.com/MKLab-ITI/visil/tree/pytorch#use-visil-in-your-python-code))
+```python
+video_features = feature_extractor(video_tensor)
+```
+
+* Use the `index_video()` function providing video features to extract video representations for the student and selector networks
+```python
+fg_features = fg_att_student.index_video(video_features)
+cg_features = cg_student.index_video(video_features)
+sn_features = selector_att.index_video(video_features)
+```
+
+* Use the `calculate_video_similarity()` function providing query and target features to calculate similarity based on the student networks.
+```python
+fine_similarity = fg_att_student.calculate_video_similarity(query_fg_features, target_fg_features)
+coarse_similarity = cg_student.calculate_video_similarity(query_cg_features, target_cg_features)
+```
+
+* To calculate the selector's score for a video pair, call the selector network by providing the features extracted 
+for each video and their coarse similarity
+```python
+selector_features = torch.cat([query_sn_features, target_sn_features, coarse_similarity], 1)
+selector_scores = selector_att(selector_features)
+```
 
 ## Citation
 If you use this code for your research, please cite our paper.
@@ -89,6 +155,7 @@ If you use this code for your research, please cite our paper.
   year={2021}
 }
 ```
+
 ## Related Projects
 **[ViSiL](https://github.com/MKLab-ITI/visil)** **[FIVR-200K](https://github.com/MKLab-ITI/FIVR-200K)**
 
