@@ -54,7 +54,7 @@ python train_student.py --student_type fine-grained --binarization true --experi
 
 * To train a coarse-grained students, provide `coarse-grained` to the `--student_type` argument:
 ```bash
-python train_student.py --student_type coarse-grained --experiment_path /path/to/experiment/ --trainset_hdf5 /path/to/dns_100k.hdf5
+python train_student.py --student_type coarse-grained --experiment_path /path/to/experiment/ --trainset_hdf5 /path/to/dns_100k.hdf5 --learning_rate 1e-5
 ```
 
 * Provide one of the `teacher`, `fg_att_student_iter1`, `fg_att_student_iter2` to the `--teacher` argument in odrder to train a student with a different teacher:
@@ -112,18 +112,18 @@ from model.students import FineGrainedStudent, CoarseGrainedStudent
 from model.selector import SelectorNetwork
 
 # The feature extraction network used in out experiments
-feature_extractor = FeatureExtractor(dims=512)
+feature_extractor = FeatureExtractor(dims=512).eval()
 
 # Our Fine-grained Students
-fg_att_student = FineGrainedStudent(pretrained=True, attention=True)
-fg_bin_student = FineGrainedStudent(pretrained=True, binarization=True)
+fg_att_student = FineGrainedStudent(pretrained=True, attention=True).eval()
+fg_bin_student = FineGrainedStudent(pretrained=True, binarization=True).eval()
 
 # Our Coarse-grained Students
-cg_student = CoarseGrainedStudent(pretrained=True)
+cg_student = CoarseGrainedStudent(pretrained=True).eval()
 
 # Our Selector Networks
-selector_att = SelectorNetwork(pretrained=True, attention=True)
-selector_bin = SelectorNetwork(pretrained=True, binarization=True)
+selector_att = SelectorNetwork(pretrained=True, attention=True).eval()
+selector_bin = SelectorNetwork(pretrained=True, binarization=True).eval()
 ```
 
 * First, extract video features by providing a video tensor to feature extractor (similar as [here](https://github.com/MKLab-ITI/visil/tree/pytorch#use-visil-in-your-python-code))
