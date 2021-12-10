@@ -2,9 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from model.layers import *
-from model.losses import SimilarityRegularizationLoss
-from model.similarities import ChamferSimilarity, VideoComperator
+from model import *
 
 
 model_urls = {
@@ -36,8 +34,8 @@ class CoarseGrainedStudent(nn.Module):
             self.attention = Attention(dims, norm=False)
         if transformer:
             encoder_layer = nn.TransformerEncoderLayer(dims, 
-                                                        transformer_heads, 
-                                                        transformer_feedforward_dims)
+                                                       transformer_heads,
+                                                       transformer_feedforward_dims)
             self.transformer = nn.TransformerEncoder(encoder_layer, 
                                                      transformer_layers, 
                                                      nn.LayerNorm(dims))
@@ -56,7 +54,8 @@ class CoarseGrainedStudent(nn.Module):
         return torch.mm(query, torch.transpose(target, 0, 1))
     
     def index_video(self, x, mask=None):
-            
+        x, mask = check_dims(x, mask)
+
         if hasattr(self, 'attention'):
             x, a = self.attention(x)
         x = torch.sum(x, 2)
@@ -79,7 +78,7 @@ class CoarseGrainedStudent(nn.Module):
                 x = torch.mean(x, 1)
         return F.normalize(x, p=2, dim=-1)
     
-    def forward(self, anchors, positives, negatives, 
+    def forward(self, anchors, positives, negatives,
                 anchors_masks=None, positive_masks=None, negative_masks=None):
         pos_pairs = torch.sum(anchors * positives, 1, keepdim=True)
         neg_pairs = torch.sum(anchors * negatives, 1, keepdim=True)
@@ -111,9 +110,12 @@ class FineGrainedStudent(nn.Module):
         self.v2v_sim = ChamferSimilarity(axes=[2, 1])
         self.htanh = nn.Hardtanh()
         
-        self.sim_criterio = SimilarityRegularizationLoss()
+        self.sim_criterion = SimilarityRegularizationLoss()
 
         if pretrained:
+            if not (attention or binarization):
+                raise Exception('No pretrained model provided for the selected settings. '
+                                'Use either \'attention=True\' or \'binarization=True\' to load a pretrained model.')
             self.load_state_dict(
                 torch.hub.load_state_dict_from_url(
                     model_urls['dns_fg_{}_student'.format(self.fg_type)])['model'])
@@ -143,24 +145,18 @@ class FineGrainedStudent(nn.Module):
         return sim, sim_mask
                 
     def calculate_video_similarity(self, query, target, query_mask=None, target_mask=None):
-        
-        def check_dims(features, mask=None, ndims=4, axis=0):
-            while features.ndim < ndims:
-                features = features.unsqueeze(axis)
-                if mask is not None:
-                    mask = mask.unsqueeze(axis)
-            return features, mask
-    
         query, query_mask = check_dims(query, query_mask)
         target, target_mask = check_dims(target, target_mask)
-        
-        sim, sim_mask = self.frame_to_frame_similarity(query, target, query_mask, target_mask)
-        
-        sim, sim_mask = self.visil_head(sim, sim_mask)
-        sim = self.htanh(sim)
+
+        sim, sim_mask = self.similarity_matrix(query, target, query_mask, target_mask)
         sim = self.v2v_sim(sim, sim_mask)
         
         return sim.view(query.shape[0], target.shape[0])
+    
+    def similarity_matrix(self, query, target, query_mask=None, target_mask=None):
+        sim, sim_mask = self.frame_to_frame_similarity(query, target, query_mask, target_mask)
+        sim, sim_mask = self.visil_head(sim, sim_mask)
+        return self.htanh(sim), sim_mask
     
     def index_video(self, x, mask=None):
         if self.fg_type == 'bin':
@@ -173,14 +169,14 @@ class FineGrainedStudent(nn.Module):
 
     def forward(self, anchors, positives, negatives, 
                 anchors_masks, positive_masks, negative_masks):
-        pos_sim, pos_mask = self.frame_to_frame_similarity(anchors, positives,
-                                                           anchors_masks, positive_masks, batched=True)
-        neg_sim, neg_mask = self.frame_to_frame_similarity(anchors, negatives,
-                                                           anchors_masks, negative_masks, batched=True)
+        pos_sim, pos_mask = self.frame_to_frame_similarity(
+            anchors, positives, anchors_masks, positive_masks, batched=True)
+        neg_sim, neg_mask = self.frame_to_frame_similarity(
+            anchors, negatives, anchors_masks, negative_masks, batched=True)
         sim, sim_mask = torch.cat([pos_sim, neg_sim], 0), torch.cat([pos_mask, neg_mask], 0)
         
         sim, sim_mask = self.visil_head(sim, sim_mask)
-        loss = self.sim_criterio(sim)
+        loss = self.sim_criterion(sim)
         sim = self.htanh(sim)
         sim = self.v2v_sim(sim, sim_mask)
         

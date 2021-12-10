@@ -30,11 +30,11 @@ def calculate_similarities_to_queries(model, queries, target, args):
     return similarities, total_time
 
 
-def get_similarities_for_percentage(coarse_similarities, fine_similarities, selector_scores, percetage, mask):
+def get_similarities_for_percentage(coarse_similarities, fine_similarities, selector_scores, percentage, mask):
     similarities = dict()
     for query, query_sims in coarse_similarities.items():
         similarities[query] = np.copy(query_sims)
-        idx = selector_scores[query][:int(percetage*np.sum(mask))]
+        idx = selector_scores[query][:int(percentage*np.sum(mask))]
         if len(idx):
             sims = np.copy(query_sims)[mask]
             sims[idx] = fine_similarities[query][mask][idx]
@@ -52,7 +52,7 @@ def main(fine_student, coarse_student, selector_network, dataset, args):
     all_db, queries_ids, queries_fs, queries_cs, queries_sn = set(), [], [], [], []
     print('\n> Extract features of the query videos')
     for video in tqdm(loader):
-        video_features = video[0].to(args.gpu_id)
+        video_features = video[0][0].to(args.gpu_id)
         video_id = video[2][0]
         
         if len(video_id) == 0:
@@ -61,7 +61,7 @@ def main(fine_student, coarse_student, selector_network, dataset, args):
         all_db.add(video_id)
         
         # Extract features of the query video
-        fine_features = fine_student.index_video(video_features.squeeze(0))
+        fine_features = fine_student.index_video(video_features)
         if not args.load_queries: fine_features = fine_features.cpu()
         coarse_features = coarse_student.index_video(video_features).cpu()
         selector_features = selector_network.index_video(video_features).cpu()
@@ -83,7 +83,7 @@ def main(fine_student, coarse_student, selector_network, dataset, args):
     time_fs, time_cs, time_sn = [], [], []
     print('\n> Extract features of the target videos and calculate fine-grained similarities')
     for j, video in enumerate(tqdm(loader)):
-        video_features = video[0].to(args.gpu_id)
+        video_features = video[0][0].to(args.gpu_id)
         video_id = video[2][0]
         
         if len(video_id) == 0:
@@ -94,7 +94,7 @@ def main(fine_student, coarse_student, selector_network, dataset, args):
         all_db.add(video_id)
         
         # Extract features of the target video
-        fine_features = fine_student.index_video(video_features.squeeze(0))
+        fine_features = fine_student.index_video(video_features)
         coarse_features = coarse_student.index_video(video_features).cpu()
         selector_features = selector_network.index_video(video_features).cpu()
 

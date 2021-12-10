@@ -1,8 +1,7 @@
 import torch
 import torch.nn as nn
 
-from model.layers import Attention
-from model.similarities import VideoComperator
+from model import *
 
 
 model_urls = {
@@ -64,7 +63,10 @@ class SelectorNetwork(nn.Module):
         self.mlp = MetadataModel(3, hidden_size, num_layers)
         
         if pretrained:
-            if attention:
+            if not (attention or binarization):
+                raise Exception('No pretrained model provided for the selected settings. '
+                                'Use either \'attention=True\' or \'binarization=True\' to load a pretrained model.')
+            elif attention:
                 self.load_state_dict(
                     torch.hub.load_state_dict_from_url(
                         model_urls['dns_selector_cg-fg_att'])['model'])
@@ -76,12 +78,13 @@ class SelectorNetwork(nn.Module):
     def get_network_name(self,):
         return 'selector_network'
     
-    def index_video(self, x, masks=None):
+    def index_video(self, x, mask=None):
+        x, mask = check_dims(x, mask)
         sim = self.frame_to_frame_similarity(x)
         
         sim_mask = None
-        if masks is not None: 
-            sim_mask = torch.einsum("bik,bjk->bij", masks.unsqueeze(-1), masks.unsqueeze(-1))
+        if mask is not None:
+            sim_mask = torch.einsum("bik,bjk->bij", mask.unsqueeze(-1), mask.unsqueeze(-1))
             sim = sim.masked_fill((1 - sim_mask).bool(), 0.0)
             
         sim, sim_mask = self.visil_head(sim, sim_mask)
