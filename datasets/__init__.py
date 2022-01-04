@@ -81,7 +81,10 @@ class FIVR(object):
             dataset = pk.load(f)
         self.name = 'FIVR'
         self.annotation = dataset['annotation']
-        self.queries = sorted(list(dataset[self.version]['queries']))
+        if not self.audio:
+            self.queries = sorted(list(dataset[self.version]['queries']))
+        else:
+            self.queries = sorted([q for q in dataset[self.version]['queries'] if 'DA' in self.annotation[q]])
         self.database = sorted(list(dataset[self.version]['database']))
 
     def get_queries(self):
@@ -109,7 +112,7 @@ class FIVR(object):
             all_db = set(self.database)
         else:
             all_db = set(self.database).intersection(all_db)
-        
+
         if not self.audio:
             DSVR, CSVR, ISVR = [], [], []
             for query, res in similarities.items():
@@ -118,7 +121,7 @@ class FIVR(object):
                         res = {v: s for v, s in zip(self.database, res) if v in all_db}
                     DSVR.append(self.calculate_mAP(query, res, all_db, relevant_labels=['ND', 'DS']))
                     CSVR.append(self.calculate_mAP(query, res, all_db, relevant_labels=['ND', 'DS', 'CS']))
-                    ISVR.append(self.calculate_mAP(query, res, all_db, relevant_labels=['ND', 'DS', 'CS', 'IS']))            
+                    ISVR.append(self.calculate_mAP(query, res, all_db, relevant_labels=['ND', 'DS', 'CS', 'IS']))
             if verbose:
                 print('=' * 5, 'FIVR-{} Dataset'.format(self.version.upper()), '=' * 5)
                 not_found = len(set(self.queries) - similarities.keys())
@@ -137,7 +140,9 @@ class FIVR(object):
             DAVR = []
             for query, res in similarities.items():
                 if query in self.queries:
-                    DAVR.append(self.calculate_mAP(query, res, all_db, relevant_labels=['DA']))         
+                    if isinstance(res, (np.ndarray, np.generic)):
+                        res = {v: s for v, s in zip(self.database, res) if v in all_db}
+                    DAVR.append(self.calculate_mAP(query, res, all_db, relevant_labels=['DA']))
             if verbose:
                 print('=' * 5, 'FIVR-{} Dataset'.format(self.version.upper()), '=' * 5)
                 not_found = len(set(self.queries) - similarities.keys())
