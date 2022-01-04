@@ -41,15 +41,17 @@ class StudentPairGenerator(Dataset):
         self.augmentation = args.augmentation
         self.selected_pairs = []
         self.normalize = args.student_type == 'coarse-grained'
-        
-        self.video_set = list(np.arange(len(self.index)))
+
+        self.videos = set(self.feature_file.keys())
+        self.video_set = [i for i, v in enumerate(self.index) if v in self.videos]
         np.random.shuffle(self.video_set)
         self.video_set = set(self.video_set[:int(len(self.index)*args.trainset_percentage/100)])
 
-    def next_epoch(self):
-        self.selected_pairs = self.select_pairs()
+    def next_epoch(self, seed=42):
+        self.selected_pairs = self.select_pairs(seed=seed)
 
-    def select_pairs(self):
+    def select_pairs(self, seed=42):
+        np.random.seed(seed)
         selected_pairs = []
         for q, t in self.pairs.items():
             pos = [v for v in list(t['positives'].keys()) if v in self.video_set]
