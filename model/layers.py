@@ -3,7 +3,6 @@ import torch
 import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.nn.init as init
 
 from model.constraints import L2Constrain
 
@@ -67,14 +66,15 @@ class RMAC(nn.Module):
             else:
                 b = (H - wl) / (l + Hd - 1)
             cenH = torch.floor(wl2 + torch.tensor(range(l - 1 + Hd + 1)) * b) - wl2  # center coordinates
-
-            for i in cenH.tolist():
-                for j in cenW.tolist():
+            
+            for i in cenH.long().tolist():
+                v = []
+                for j in cenW.long().tolist():
                     if wl == 0:
                         continue
-                    R = x[:,:,(int(i_)+torch.Tensor(range(wl)).long()).tolist(),:]
-                    R = R[:,:,:,(int(j_)+torch.Tensor(range(wl)).long()).tolist()]
-                    vecs.append(F.max_pool2d(R, (R.size(-2), R.size(-1))))
+                    R = x[:, :, i: i+wl, j: j+wl]
+                    v.append(F.adaptive_max_pool2d(R, (1, 1)))
+                vecs.append(torch.cat(v, dim=3))
         return torch.cat(vecs, dim=2)
     
     
@@ -133,7 +133,8 @@ class Attention(nn.Module):
     def apply_contraint(self):
         if self.norm:
             self.constrain(self.context_vector)
-            
+
+
 class BinarizationLayer(nn.Module):
 
     def __init__(self, dims, bits=None, ITQ_init=True):
@@ -182,7 +183,7 @@ class NetVLAD(nn.Module):
         if hasattr(self, 'reduction_layer'):
             nn.init.normal_(self.reduction_layer.weight, std=1 / math.sqrt(self.num_clusters * self.dims))
 
-    def forward(self, x, mask=None, sample=False):
+    def forward(self, x, mask=None):
         N, C, T, R = x.shape
 
         # soft-assignment
