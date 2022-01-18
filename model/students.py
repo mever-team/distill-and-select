@@ -39,9 +39,11 @@ class CoarseGrainedStudent(nn.Module):
             self.transformer = nn.TransformerEncoder(encoder_layer, 
                                                      transformer_layers, 
                                                      nn.LayerNorm(dims))
+        self.apply(self._init_weights)
+
         if netvlad:
             self.netvlad = NetVLAD(dims, netvlad_clusters, outdims=netvlad_outdims)
-                
+
         if pretrained:
             self.load_state_dict(
                 torch.hub.load_state_dict_from_url(
@@ -83,6 +85,14 @@ class CoarseGrainedStudent(nn.Module):
         pos_pairs = torch.sum(anchors * positives, 1, keepdim=True)
         neg_pairs = torch.sum(anchors * negatives, 1, keepdim=True)
         return pos_pairs, neg_pairs, None
+
+    def _init_weights(self, m):
+        if isinstance(m, nn.Linear):
+            if m.bias is not None:
+                nn.init.zeros_(m.bias)
+        elif isinstance(m, nn.LayerNorm):
+            nn.init.constant_(m.bias, 0)
+            nn.init.constant_(m.weight, 1.0)
 
 
 class FineGrainedStudent(nn.Module):
@@ -154,6 +164,9 @@ class FineGrainedStudent(nn.Module):
         return sim.view(query.shape[0], target.shape[0])
     
     def similarity_matrix(self, query, target, query_mask=None, target_mask=None):
+        query, query_mask = check_dims(query, query_mask)
+        target, target_mask = check_dims(target, target_mask)
+        
         sim, sim_mask = self.frame_to_frame_similarity(query, target, query_mask, target_mask)
         sim, sim_mask = self.visil_head(sim, sim_mask)
         return self.htanh(sim), sim_mask
