@@ -12,12 +12,13 @@ from model.students import FineGrainedStudent, CoarseGrainedStudent
 @torch.no_grad()
 def calculate_similarities_to_queries(model, queries, target, args):
     similarities = []
+    batch_sz = 2048 if 'batch_sz_sim' not in args else args.batch_sz_sim
     for i, query in enumerate(queries):
         if query.device.type == 'cpu':
             query = query.to(args.gpu_id)
         sim = []
-        for b in range(target.shape[0]//args.batch_sz_sim + 1):
-            batch = target[b*args.batch_sz_sim: (b+1)*args.batch_sz_sim]
+        for b in range(target.shape[0]//batch_sz + 1):
+            batch = target[b*batch_sz: (b+1)*batch_sz]
             if batch.shape[0] >= 4:
                 sim.append(model.calculate_video_similarity(query, batch))
         sim = torch.mean(torch.cat(sim, 0))
@@ -39,7 +40,7 @@ def query_vs_target(model, dataset, args):
         video_id = video[2][0]
         if video_id:
             features = model.index_video(video_features.to(args.gpu_id))
-            if not args.load_queries: features = features.cpu()
+            if 'load_queries' in args and not args.load_queries: features = features.cpu()
             all_db.add(video_id)
             queries.append(features)
             queries_ids.append(video_id)
@@ -62,7 +63,7 @@ def query_vs_target(model, dataset, args):
                 similarities[queries_ids[i]][video_id] = float(s)
     
     print('\n> Evaluation on {}'.format(dataset.name))
-    dataset.evaluate(similarities, all_db)
+    return dataset.evaluate(similarities, all_db)
 
     
 @torch.no_grad()
@@ -114,7 +115,7 @@ def queries_vs_database(model, dataset, args):
             similarities[queries_ids[i]][targets_ids[j]] = float(sims[i, j])
 
     print('\n> Evaluation on {}'.format(dataset.name))
-    dataset.evaluate(similarities, all_db)
+    return dataset.evaluate(similarities, all_db)
 
     
 if __name__ == '__main__':
@@ -156,7 +157,7 @@ if __name__ == '__main__':
     elif 'SVD' in args.dataset:
         from datasets import SVD
         dataset = SVD()
-    
+
     print('\n> Loading network')
     if args.student_path is not None:
         d = torch.load(args.student_path, map_location='cpu')
@@ -172,16 +173,16 @@ if __name__ == '__main__':
         if args.student_type == 'fine-grained':
             if not args.attention and not args.binarization:
                 raise Exception('No pretrained network for the given inputs. Provide either `--attention` or `--binarization` arguments as true for the pretrained fine-grained students.')
-            model = FineGrainedStudent(attention=args.attention, 
+            model = FineGrainedStudent(attention=args.attention,
                                        binarization=args.binarization,
                                        pretrained=True)
             eval_function = query_vs_target
         elif args.student_type == 'coarse-grained':
             model = CoarseGrainedStudent(pretrained=True)
-            eval_function = queries_vs_database        
+            eval_function = queries_vs_database
     model = model.to(args.gpu_id)
     model.eval()
-    
+
     print(model)
-    
+
     eval_function(model, dataset, args)

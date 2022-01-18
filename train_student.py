@@ -1,4 +1,5 @@
 import os
+import copy
 import utils
 import torch
 import argparse
@@ -15,15 +16,18 @@ def main(args):
     print('\nInput Arguments')
     print('---------------')
     for k, v in sorted(dict(vars(args)).items()):
-        if 'fine' in args.student_type:
-            if 'netvlad' not in k and 'transformer' not in k:
-                if args.attention  and 'binar' not in k:
+        if 'val_' not in k:
+            if 'fine' in args.student_type:
+                if 'netvlad' not in k and 'transformer' not in k:
+                    if args.attention  and 'binar' not in k:
+                        print('%s: %s' % (k, str(v)))
+                    elif args.binarization and 'attention' not in k:
+                        print('%s: %s' % (k, str(v)))
+            else:
+                if 'binar' not in k:
                     print('%s: %s' % (k, str(v)))
-                elif args.binarization and 'attention' not in k:
-                    print('%s: %s' % (k, str(v)))
-        else:
-            if 'binar' not in k:
-                print('%s: %s' % (k, str(v)))
+        elif args.val_hdf5 is not None:
+            print('%s: %s' % (k, str(v)))
 
     print('\n> Create generator of video pairs')
     print('>> loading pairs...')
@@ -55,9 +59,21 @@ def main(args):
         if 'global_step' in d:
             global_step = d.pop('global_step')
 
+    if args.val_hdf5 is not None:
+        from datasets import FIVR
+        from evaluation_student import query_vs_target, queries_vs_database
+        if 'fine' in args.student_type:
+            eval_function = query_vs_target
+        else:
+            eval_function = queries_vs_database
+        val_dataset = FIVR(version='5k')
+        val_args = copy.deepcopy(args)
+        val_args.dataset_hdf5 = val_args.val_hdf5
+        val_max = .0
+
     print('\n> Start training')
     for epoch in range(args.epochs):
-        dataset.next_epoch()
+        dataset.next_epoch(np.random.randint(np.iinfo(np.int32).max))
         loader = DataLoader(dataset, num_workers=args.workers, 
                             shuffle=True, batch_size=args.batch_sz//2,
                             collate_fn=utils.collate_student)
@@ -100,7 +116,16 @@ def main(args):
                 if regularization_loss is not None:
                     p['regularization_loss'] ='{:.3f} ({:.3f})'.format(rloss[-1], np.mean(rloss))
                 pbar.set_postfix(p)
-        utils.save_model(args, model, optimizer, global_step)
+
+        if args.val_hdf5 is not None and epoch % args.val_step == 0:
+            model.eval()
+            res = eval_function(model, val_dataset, val_args)
+            model.train()
+            if res[args.val_set] > val_max:
+                val_max = res[args.val_set]
+                utils.save_model(args, model, optimizer, global_step)
+        else:
+            utils.save_model(args, model, optimizer, global_step)
         
                 
 if __name__ == '__main__':
@@ -127,26 +152,26 @@ if __name__ == '__main__':
     # Student network options
     parser.add_argument('--student_type', type=str, default='fine-grained', choices=['fine-grained', 'coarse-grained'], 
                         help='Type of the student network.')
-    parser.add_argument('--attention', type=utils.bool_flag, default=False, 
-                        help='Boolean flag indicating whether an Attention layer will be used. Aplicable for both Student types.')
+    parser.add_argument('--attention', type=utils.bool_flag, default=True,
+                        help='Boolean flag indicating whether an Attention layer will be used. Applicable for both Student types.')
     parser.add_argument('--binarization', type=utils.bool_flag, default=False, 
-                        help='Boolean flag indicating whether a Binarization layer will be used. Aplicable only for Fine-grained Students.')
+                        help='Boolean flag indicating whether a Binarization layer will be used. Applicable only for Fine-grained Students.')
     parser.add_argument('--binary_bits', type=int, default=512, 
-                        help='Number of bits used in the Binarization layer. Aplicable only for Fine-grained Students when --binarization flag is true.')
+                        help='Number of bits used in the Binarization layer. Applicable only for Fine-grained Students when --binarization flag is true.')
     parser.add_argument('--transformer', type=utils.bool_flag, default=True, 
-                        help='Boolean flag indicating whether a Transformer layer will be used. Aplicable only for Coarse-grained Students.')
+                        help='Boolean flag indicating whether a Transformer layer will be used. Applicable only for Coarse-grained Students.')
     parser.add_argument('--transformer_heads', type=int, default=8, 
-                        help='Number of heads used in the multi-head attention layer of the Transformer. Aplicable only Coarse-grained Students when --transformer flag is true.')
+                        help='Number of heads used in the multi-head attention layer of the Transformer. Applicable only for Coarse-grained Students when --transformer flag is true.')
     parser.add_argument('--transformer_feedforward_dims', type=int, default=2048, 
-                        help='Number of dimensions of the feedforward network of the Transformer. Aplicable only Coarse-grained Students when --transformer flag is true.')
+                        help='Number of dimensions of the feedforward network of the Transformer. Applicable only for Coarse-grained Students when --transformer flag is true.')
     parser.add_argument('--transformer_layers', type=int, default=1, 
-                        help='Number of layers of the Transformer. Aplicable only Coarse-grained Students when --transformer flag is true.')
+                        help='Number of layers of the Transformer. Applicable only for Coarse-grained Students when --transformer flag is true.')
     parser.add_argument('--netvlad', type=utils.bool_flag, default=True,
-                        help='Boolean flag indicating whether a NetVLAD layer will be used. Aplicable only for Coarse-grained Students.')
+                        help='Boolean flag indicating whether a NetVLAD layer will be used. Applicable only for Coarse-grained Students.')
     parser.add_argument('--netvlad_clusters', type=int, default=64,
-                        help='Number of clusters used in NetVLAD. Aplicable only Coarse-grained Students when --netvlad flag is true.')
+                        help='Number of clusters used in NetVLAD. Applicable only for Coarse-grained Students when --netvlad flag is true.')
     parser.add_argument('--netvlad_outdims', type=int, default=1024,
-                        help='Number of outdims used in output linear layer of the NetVLAD. Aplicable only Coarse-grained Students when --netvlad flag is true.')
+                        help='Number of outdims used in output linear layer of the NetVLAD. Applicable only for Coarse-grained Students when --netvlad flag is true.')
     
     # Training process options
     parser.add_argument('--batch_sz', type=int, default=64,
@@ -161,6 +186,14 @@ if __name__ == '__main__':
                         help='Weight decay used during training')
     parser.add_argument('--r_parameter', type=float, default=1e-3, 
                         help='Parameter that determines the impact of similarity regularization loss')
+
+    # Validation process options
+    parser.add_argument('--val_hdf5', type=str, default=None,
+                        help='Path to hdf5 file containing the features of the FIVR-5K dataset')
+    parser.add_argument('--val_set', type=str, default="DSVR", choices=["DSVR", "CSVR", "ISVR"],
+                        help='Set of the FIVR-5K used for validation. Applicable only when --val_hdf5 is provided.')
+    parser.add_argument('--val_step', type=int, default=5,
+                        help='Number of epochs to perform validation. Applicable only when --val_hdf5 is provided.')
     args = parser.parse_args()
     
     main(args)
