@@ -29,7 +29,7 @@ conda install --file requirements.txt
 
 * Download the feature files of the dataset you want:
     * [DnS-100K](https://mever.iti.gr/distill-and-select/features/dns_100k.hdf5) (219 GB)
-    * [FIVR-200K](https://mever.iti.gr/distill-and-select/features/fivr_200k.hdf5) (406 GB)
+    * [FIVR-200K](https://mever.iti.gr/distill-and-select/features/fivr_200k.hdf5) (406 GB), [FIVR-5K](https://mever.iti.gr/distill-and-select/features/fivr_5k.hdf5) (8.7 GB)
     * [CC_WEB_VIDEO](https://mever.iti.gr/distill-and-select/features/cc_web_video.hdf5) (31 GB)
     * [SVD](https://mever.iti.gr/distill-and-select/features/svd.hdf5) (150 GB)
     * [EVVE](https://mever.iti.gr/distill-and-select/features/evve.hdf5) (9 GB)
@@ -62,6 +62,11 @@ python train_student.py --student_type coarse-grained --experiment_path /path/to
 python train_student.py --teacher fg_att_student_iter2 --experiment_path /path/to/experiment/ --trainset_hdf5 /path/to/dns_100k.hdf5
 ```
 
+* You can optionally perform validation with FIVR-5K by providing its HDF5 file to the `--val_hdf5` and choosing one of the DSVR, CSVR, ISVR sets 
+with the `--val_hdf5` argument:
+```bash
+python train_student.py --student_type coarse-grained --val_hdf5 /path/to/fivr_5k.hdf5 --val_set ISVR --experiment_path /path/to/experiment/ --trainset_hdf5 /path/to/dns_100k.hdf5 --learning_rate 1e-5
+```
 ### Student Evaluation
 * Choose one of the `FIVR-5K`, `FIVR-200K`, `CC_WEB_VIDEO`, `SVD`, or `EVVE` datasets to evaluate your models.
 
@@ -105,6 +110,8 @@ Given the value `all`, it runs evaluation for all dataset percentages.
 
 
 ## Use our pretrained models
+We also provide our pretrained models trained with the `fg_att_student_iter2` teacher.
+
 * Load our pretrained models as follows:
 ```python
 from model.feature_extractor import FeatureExtractor
