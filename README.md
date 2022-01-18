@@ -47,14 +47,21 @@ We provide the code for training and evaluation of our student models.
 python train_student.py --student_type fine-grained --experiment_path experiments/DnS_students --trainset_hdf5 /path/to/dns_100k.hdf5
 ```
 
-* You can train an attention or binarization fine-grained students by setting either the `--attention` or `--binarization` flags to `true`, respectively:
+* You can train an attention or binarization fine-grained students by setting either the `--attention` or `--binarization` flags to `true`, respectively.
+
+For fine-grained attention students:
 ```bash
-python train_student.py --student_type fine-grained --binarization true --experiment_path /path/to/experiment/ --trainset_hdf5 /path/to/dns_100k.hdf5
+python train_student.py --student_type fine-grained --binarization false --attention true --experiment_path /path/to/experiment/ --trainset_hdf5 /path/to/dns_100k.hdf5
+```
+
+For fine-grained binarization students:
+```bash
+python train_student.py --student_type fine-grained --binarization true --attention false --experiment_path /path/to/experiment/ --trainset_hdf5 /path/to/dns_100k.hdf5
 ```
 
 * To train a coarse-grained students, provide `coarse-grained` to the `--student_type` argument:
 ```bash
-python train_student.py --student_type coarse-grained --experiment_path /path/to/experiment/ --trainset_hdf5 /path/to/dns_100k.hdf5 --learning_rate 1e-5
+python train_student.py --student_type coarse-grained --experiment_path /path/to/experiment/ --trainset_hdf5 /path/to/dns_100k.hdf5 --attention true --learning_rate 1e-5
 ```
 
 * Provide one of the `teacher`, `fg_att_student_iter1`, `fg_att_student_iter2` to the `--teacher` argument in odrder to train a student with a different teacher:
