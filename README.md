@@ -63,7 +63,7 @@ python train_student.py --teacher fg_att_student_iter2 --experiment_path /path/t
 ```
 
 * You can optionally perform validation with FIVR-5K by providing its HDF5 file to the `--val_hdf5` and choosing one of the DSVR, CSVR, ISVR sets 
-with the `--val_hdf5` argument:
+with the `--val_set` argument:
 ```bash
 python train_student.py --student_type coarse-grained --val_hdf5 /path/to/fivr_5k.hdf5 --val_set ISVR --experiment_path /path/to/experiment/ --trainset_hdf5 /path/to/dns_100k.hdf5 --learning_rate 1e-5
 ```
