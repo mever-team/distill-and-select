@@ -44,15 +44,15 @@ def main(args):
     
     distil_criterio = nn.L1Loss()
     params = [v for v in filter(lambda p: p.requires_grad, model.parameters())]
-    optimizer = torch.optim.Adam(params, 
+    optimizer = torch.optim.Adam(params,
                                  lr=args.learning_rate, 
                                  weight_decay=args.weight_decay)
     global_step = torch.zeros((1,))
     
     if args.load_model:
         print('>> loading network')
-        d = torch.load(os.path.join(args.experiment_name, 'model_{}.pth'.format(
-            model.get_name())), map_location='cpu')
+        d = torch.load(os.path.join(args.experiment_path, 'model_{}.pth'.format(
+            model.get_network_name())), map_location='cpu')
         model.load_state_dict(d['model'])
         if 'optimizer' in d:
             optimizer.load_state_dict(d['optimizer'])
