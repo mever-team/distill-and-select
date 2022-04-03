@@ -31,6 +31,8 @@ class FeatureExtractor(nn.Module):
                     region_vectors = F.max_pool2d(x, [s, s], int(np.ceil(s / 2)))
                     region_vectors = F.normalize(region_vectors, p=2, dim=1)
                     tensors.append(region_vectors)
+        for i in range(len(tensors)):
+            tensors[i] = F.normalize(F.adaptive_max_pool2d(tensors[i], tensors[-1].shape[2:]), p=2, dim=1)
         x = torch.cat(tensors, 1)
         x = x.view(x.shape[0], x.shape[1], -1).permute(0, 2, 1)
         x = F.normalize(x, p=2, dim=-1)
