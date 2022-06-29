@@ -19,6 +19,9 @@ class TensorDot(nn.Module):
         elif self.metric == 'hamming':
             sim = torch.einsum(self.pattern, query, target) / target.shape[-1]
         return sim
+
+    def __repr__(self,):
+        return '{}(pattern={})'.format(self.__class__.__name__, self.pattern)
         
 
 class ChamferSimilarity(nn.Module):
@@ -42,7 +45,7 @@ class ChamferSimilarity(nn.Module):
         else:
             s = torch.max(s, max_axis, keepdim=True)[0]
             s = torch.mean(s, mean_axis, keepdim=True)
-        return s.squeeze(max_axis).squeeze(mean_axis)
+        return s.squeeze(max(max_axis, mean_axis)).squeeze(min(max_axis, mean_axis))
 
     def symmetric_chamfer_similarity(self, s, mask=None, axes=[0, 1]):
         return (self.chamfer_similarity(s, mask=mask, max_axis=axes[0], mean_axis=axes[1]) +
@@ -53,14 +56,15 @@ class ChamferSimilarity(nn.Module):
 
     def __repr__(self,):
         return '{}(max_axis={}, mean_axis={})'.format(self.__class__.__name__, self.axes[0], self.axes[1])
-    
+
+
 class VideoComperator(nn.Module):
 
-    def __init__(self,):
+    def __init__(self, in_channels=1, out_channels=1):
         super(VideoComperator, self).__init__()
         
         self.rpad1 = nn.ZeroPad2d(1)
-        self.conv1 = nn.Conv2d(1, 32, 3)
+        self.conv1 = nn.Conv2d(in_channels, 32, 3)
         self.pool1 = nn.MaxPool2d((2, 2), 2)
 
         self.rpad2 = nn.ZeroPad2d(1)
@@ -70,7 +74,7 @@ class VideoComperator(nn.Module):
         self.rpad3 = nn.ZeroPad2d(1)
         self.conv3 = nn.Conv2d(64, 128, 3)
 
-        self.fconv = nn.Conv2d(128, 1, 1)
+        self.fconv = nn.Conv2d(128, out_channels, 1)
 
         self.reset_parameters()
 
@@ -82,8 +86,17 @@ class VideoComperator(nn.Module):
                     nn.init.zeros_(m.bias)
 
     def forward(self, sim_matrix, mask=None):
-        sim_matrix = sim_matrix.unsqueeze(1)
-        if mask is not None: mask = mask.unsqueeze(1)
+        if sim_matrix.ndim == 3:
+            sim_matrix = sim_matrix.unsqueeze(1)
+        elif sim_matrix.ndim != 4:
+            raise Exception('Input tensor to VideoComperator have to be 3- or 4-dimensional')
+
+        if mask is not None:
+            assert mask.shape[-2:] == sim_matrix.shape[-2:], 'Mask tensor must be of the same shape as similarity ' \
+                                                             'matrix in the last two dimensions. Mask shape is {} ' \
+                                                             'while similarity matrix is {}'.format(mask.shape[-2:],
+                                                                                                    sim_matrix.shape[-2:])
+            mask = mask.unsqueeze(1)
 
         sim = self.rpad1(sim_matrix)
         sim = self.conv1(sim)

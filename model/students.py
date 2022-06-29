@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from model import *
+from einops import rearrange
 
 
 model_urls = {
@@ -106,7 +107,10 @@ class FineGrainedStudent(nn.Module):
                  ):
         super(FineGrainedStudent, self).__init__()
         self.student_type = 'fg'
-        if binarization:
+        if attention and binarization:
+            raise Exception('Can\'t use \'attention=True\' and \'binarization=True\' at the same time. '
+                            'Select one of the two options.')
+        elif binarization:
             self.fg_type = 'bin'
             self.binarization = BinarizationLayer(dims)
         elif attention:
@@ -114,12 +118,14 @@ class FineGrainedStudent(nn.Module):
             self.attention = Attention(dims, norm=False)
         else:
             self.fg_type = 'none'
-        
-        self.visil_head = VideoComperator()
+
         self.f2f_sim = ChamferSimilarity(axes=[3, 2])
-        self.v2v_sim = ChamferSimilarity(axes=[2, 1])
+
+        self.visil_head = VideoComperator()
         self.htanh = nn.Hardtanh()
-        
+
+        self.v2v_sim = ChamferSimilarity(axes=[2, 1])
+
         self.sim_criterion = SimilarityRegularizationLoss()
 
         if pretrained:
@@ -140,14 +146,14 @@ class FineGrainedStudent(nn.Module):
             sim = torch.einsum('biok,bjpk->biopj', query, target)
             sim = self.f2f_sim(sim)
             if query_mask is not None and target_mask is not None:
-                sim_mask = torch.einsum("bik,bjk->bij", query_mask.unsqueeze(-1), target_mask.unsqueeze(-1))
+                sim_mask = torch.einsum('bik,bjk->bij', query_mask.unsqueeze(-1), target_mask.unsqueeze(-1))
         else:
             sim = torch.einsum('aiok,bjpk->aiopjb', query, target)
-            sim = self.f2f_sim(sim).permute(0, 3, 1, 2)
-            sim = sim.reshape(-1, sim.shape[-2], sim.shape[-1])
+            sim = self.f2f_sim(sim)
+            sim = rearrange(sim, 'a i j b -> (a b) i j')
             if query_mask is not None and target_mask is not None:
                 sim_mask = torch.einsum('aik,bjk->aijb', query_mask.unsqueeze(-1), target_mask.unsqueeze(-1))
-                sim_mask = sim_mask.permute(0, 3, 1, 2).reshape(*sim.shape)
+                sim_mask = rearrange(sim_mask, 'a i j b -> (a b) i j')
         if self.fg_type == 'bin':
             sim /= d
         if sim_mask is not None:

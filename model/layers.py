@@ -137,8 +137,9 @@ class Attention(nn.Module):
 
 class BinarizationLayer(nn.Module):
 
-    def __init__(self, dims, bits=None, ITQ_init=True):
+    def __init__(self, dims, bits=None, sigma=1e-6, ITQ_init=True):
         super(BinarizationLayer, self).__init__()
+        self.sigma = sigma
         if ITQ_init:
             pretrained_url = 'https://mever.iti.gr/distill-and-select/models/itq_resnet50W_dns100k_1M.pth'
             self.W = nn.Parameter(torch.hub.load_state_dict_from_url(pretrained_url)['proj'])
@@ -151,17 +152,19 @@ class BinarizationLayer(nn.Module):
         x = F.normalize(x, p=2, dim=-1)
         x = torch.matmul(x, self.W)
         if self.training:
-            x = torch.erf(x / np.sqrt(2 * 1e-6))
+            x = torch.erf(x / np.sqrt(2 * self.sigma))
         else:
             x = torch.sign(x)
         return x
-    
+
     def __repr__(self,):
-        return '{}(dims={}, bits={})'.format(self.__class__.__name__, self.W.shape[0], self.W.shape[1])
+        return '{}(dims={}, bits={}, sigma={})'.format(
+            self.__class__.__name__, self.W.shape[0], self.W.shape[1], self.sigma)
 
     
 class NetVLAD(nn.Module):
-    
+    """Acknowledgement to @lyakaap and @Nanne for providing their implementations"""
+
     def __init__(self, dims, num_clusters, outdims=None):
         super(NetVLAD, self).__init__()
         self.num_clusters = num_clusters

@@ -74,19 +74,31 @@ class StudentPairGenerator(Dataset):
         return torch.from_numpy(video_tensor.astype(np.float32))
 
     def augment(self, video):
-        if video.shape[0] > 6:
+        if video.shape[0] > 8:
             rnd = np.random.uniform()
-            if rnd < 0.1:
-                mask = np.random.rand(video.shape[0]) > 0.3
-                if np.sum(mask):
-                    video = video[mask]
-            elif rnd < 0.2:
-                video = video[::2]
+            if rnd < 0.2:
+                N, T, D = video.shape
+                window_size = np.random.randint(4, 16)
+                offset = N % window_size
+                if offset:
+                    video = np.concatenate([video, video], 0)[:N + (window_size - offset)]
+                video = video.reshape(-1, window_size, T, D)
+                if rnd < 0.1:
+                    mask = np.random.rand(video.shape[0]) > 0.3
+                    if np.sum(mask):
+                        video = video[mask]
+                else:
+                    np.random.shuffle(video)
+                video = np.reshape(video, (-1, T, D))
             elif rnd < 0.3:
+                video = video[::2]
+            elif rnd < 0.4:
                 if video.shape[0] < 150:
                     idx = np.insert(np.arange(len(video)), np.arange(len(video)), np.arange(len(video)))
                     video = video[idx]
-        return video
+            elif rnd < 0.5:
+                video = video[::-1]
+        return video[:300]
 
     def __len__(self):
         return len(self.selected_pairs)

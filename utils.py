@@ -84,6 +84,25 @@ def bool_flag(s):
     else:
         raise argparse.ArgumentTypeError("invalid value for a boolean flag")
 
+
+def pprint_args(args):
+    for k, v in sorted(dict(vars(args)).items()):
+        if 'val_' not in k:
+            if 'fine' in args.student_type:
+                if 'netvlad' not in k and 'transformer' not in k:
+                    if args.attention and 'binar' not in k:
+                        print('%s: %s' % (k, str(v)))
+                    elif args.binarization and 'attention' not in k:
+                        print('%s: %s' % (k, str(v)))
+                    elif not args.attention and not args.binarization and \
+                            'attention' not in k and 'binar' not in k:
+                        print('%s: %s' % (k, str(v)))
+            else:
+                if 'binar' not in k:
+                    print('%s: %s' % (k, str(v)))
+        elif args.val_hdf5 is not None:
+            print('%s: %s' % (k, str(v)))
+
         
 def center_crop(frame, desired_size):
     if frame.ndim == 3:

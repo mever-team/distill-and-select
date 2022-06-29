@@ -15,19 +15,7 @@ from model.students import FineGrainedStudent, CoarseGrainedStudent
 def main(args):
     print('\nInput Arguments')
     print('---------------')
-    for k, v in sorted(dict(vars(args)).items()):
-        if 'val_' not in k:
-            if 'fine' in args.student_type:
-                if 'netvlad' not in k and 'transformer' not in k:
-                    if args.attention  and 'binar' not in k:
-                        print('%s: %s' % (k, str(v)))
-                    elif args.binarization and 'attention' not in k:
-                        print('%s: %s' % (k, str(v)))
-            else:
-                if 'binar' not in k:
-                    print('%s: %s' % (k, str(v)))
-        elif args.val_hdf5 is not None:
-            print('%s: %s' % (k, str(v)))
+    utils.pprint_args(args)
 
     print('\n> Create generator of video pairs')
     print('>> loading pairs...')
@@ -42,7 +30,7 @@ def main(args):
     model.train()
     print(model)
     
-    distil_criterio = nn.L1Loss()
+    distil_criterion = nn.L1Loss()
     params = [v for v in filter(lambda p: p.requires_grad, model.parameters())]
     optimizer = torch.optim.Adam(params,
                                  lr=args.learning_rate, 
@@ -96,7 +84,7 @@ def main(args):
             
             teacher_similarities = similarities.view(-1)
             student_similarities = torch.cat([pos_pairs, neg_pairs], 1).view(-1)
-            distillation_loss = distil_criterio(student_similarities, teacher_similarities)
+            distillation_loss = distil_criterion(student_similarities, teacher_similarities)
             loss = distillation_loss
             if regularization_loss is not None:
                 loss += args.r_parameter*regularization_loss
@@ -117,15 +105,15 @@ def main(args):
                     p['regularization_loss'] ='{:.3f} ({:.3f})'.format(rloss[-1], np.mean(rloss))
                 pbar.set_postfix(p)
 
-        if args.val_hdf5 is not None and epoch % args.val_step == 0:
+        if args.val_hdf5 is None:
+            utils.save_model(args, model, optimizer, global_step)
+        elif (epoch + 1) % args.val_step == 0:
             model.eval()
             res = eval_function(model, val_dataset, val_args)
             model.train()
             if res[args.val_set] > val_max:
                 val_max = res[args.val_set]
                 utils.save_model(args, model, optimizer, global_step)
-        else:
-            utils.save_model(args, model, optimizer, global_step)
         
                 
 if __name__ == '__main__':
