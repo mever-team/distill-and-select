@@ -4,6 +4,7 @@ import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 
+from einops import rearrange
 from model.constraints import L2Constrain
 
 
@@ -187,26 +188,22 @@ class NetVLAD(nn.Module):
             nn.init.normal_(self.reduction_layer.weight, std=1 / math.sqrt(self.num_clusters * self.dims))
 
     def forward(self, x, mask=None):
-        N, C, T, R = x.shape
+        b, d, t, r = x.shape
 
         # soft-assignment
-        soft_assign = self.conv(x).view(N, self.num_clusters, -1)
-        soft_assign = F.softmax(soft_assign, dim=1).view(N, self.num_clusters, T, R)
+        soft_assign = self.conv(x)
+        soft_assign = F.softmax(soft_assign, dim=1)
 
-        x_flatten = x.view(N, C, -1)
-
-        vlad = torch.zeros([N, self.num_clusters, C], dtype=x.dtype, layout=x.layout, device=x.device)
-        for cluster in range(self.num_clusters):  # slower than non-looped, but lower memory usage
-            residual = x_flatten.unsqueeze(0).permute(1, 0, 2, 3) - self.centroids[cluster:cluster + 1, :].\
-                expand(x_flatten.size(-1), -1, -1).permute(1, 2, 0).unsqueeze(0)
-            residual = residual.view(N, C, T, R)
-            residual *= soft_assign[:, cluster:cluster + 1, :]
+        vlad = torch.zeros([b, self.num_clusters, d], dtype=x.dtype, layout=x.layout, device=x.device)
+        for cluster in range(self.num_clusters):
+            residual = x - rearrange(self.centroids[cluster], 'd -> () d () ()')
+            residual *= soft_assign[:, cluster].unsqueeze(1)
             if mask is not None:
-                residual = residual.masked_fill((1 - mask.unsqueeze(1).unsqueeze(-1)).bool(), 0.0)
-            vlad[:, cluster:cluster+1, :] = residual.sum([-2, -1]).unsqueeze(1)
+                residual = residual.masked_fill((1 - rearrange(mask, 'b t -> b () t ()')).bool(), 0.0)
+            vlad[:, cluster] = residual.sum([-2, -1])
 
         vlad = F.normalize(vlad, p=2, dim=2)  # intra-normalization
-        vlad = vlad.view(x.size(0), -1)  # flatten
+        vlad = vlad.view(b, -1)  # flatten
         vlad = F.normalize(vlad, p=2, dim=1)  # L2 normalize
 
         if hasattr(self, 'reduction_layer'):
