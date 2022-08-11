@@ -36,7 +36,8 @@ class CoarseGrainedStudent(nn.Module):
         if transformer:
             encoder_layer = nn.TransformerEncoderLayer(dims, 
                                                        transformer_heads,
-                                                       transformer_feedforward_dims)
+                                                       transformer_feedforward_dims,
+                                                       batch_first=True)
             self.transformer = nn.TransformerEncoder(encoder_layer, 
                                                      transformer_layers, 
                                                      nn.LayerNorm(dims))
@@ -65,11 +66,9 @@ class CoarseGrainedStudent(nn.Module):
         x = F.normalize(x, p=2, dim=-1)
         
         if hasattr(self, 'transformer'):
-            x = x.permute(1, 0, 2)
             x = self.transformer(x, src_key_padding_mask=
                                  (1 - mask).bool() if mask is not None else None)
-            x = x.permute(1, 0, 2)
-        
+
         if hasattr(self, 'netvlad'):
             x = x.unsqueeze(2).permute(0, 3, 1, 2)
             x = self.netvlad(x, mask=mask)
