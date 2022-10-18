@@ -1,5 +1,12 @@
 # DnS: Distill-and-Select for Efficient and Accurate Video Indexing and Retrieval
-This repository contains the PyTorch implementation of the paper [DnS: Distill-and-Select for Efficient and Accurate Video Indexing and Retrieval](https://arxiv.org/abs/2106.13266).
+This repository contains the PyTorch implementation of the paper [DnS: Distill-and-Select for Efficient and Accurate Video Indexing and Retrieval](https://arxiv.org/abs/2106.13266). 
+It provides code for the knowledge distillation training of coarse- and fine-grained student networks based on 
+similarities calculated from a teacher and the selector network. Also, the scripts for the training of the selector
+network are included. Finally, to facilitate the reproduction of the paper's results, the evaluation code, the
+extracted features for the employed video datasets, and pre-trained networks for the various students and selectors are available.
+
+<img src="https://github.com/mever-team/distill-and-select/blob/main/dns_overview.png?raw=true" width="70%">
+
 
 ## Prerequisites
 * Python 3
@@ -168,11 +175,11 @@ selector_scores = selector_att(selector_features)
 ## Citation
 If you use this code for your research, please cite our paper.
 ```
-@article{kordopatis2021dns,
-  title={DnS: Distill-and-Select for Efficient and Accurate Video Indexing and Retrieval},
+@article{kordopatis2022dns,
+  title={{DnS}: {Distill-and-Select} for Efficient and Accurate Video Indexing and Retrieval},
   author={Kordopatis-Zilos, Giorgos and Tzelepis, Christos and Papadopoulos, Symeon and Kompatsiaris, Ioannis and Patras, Ioannis},
-  journal={arXiv preprint arXiv:2106.13266},
-  year={2021}
+  journal={International Journal of Computer Vision},
+  year={2022}
 }
 ```
 
