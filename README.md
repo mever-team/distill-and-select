@@ -5,7 +5,7 @@ similarities calculated from a teacher and the selector network. Also, the scrip
 network are included. Finally, to facilitate the reproduction of the paper's results, the evaluation code, the
 extracted features for the employed video datasets, and pre-trained networks for the various students and selectors are available.
 
-<img src="https://github.com/mever-team/distill-and-select/blob/main/dns_overview.png?raw=true" width="70%">
+<img src="https://github.com/mever-team/distill-and-select/blob/main/dns_overview.png?raw=true" width="100%">
 
 
 ## Prerequisites
