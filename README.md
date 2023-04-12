@@ -174,18 +174,28 @@ selector_scores = selector_att(selector_features)
 ```
 
 ## Citation
-If you use this code for your research, please cite our paper.
-```
+If you use this code for your research, please consider citing our papers:
+```bibtex
 @article{kordopatis2022dns,
   title={{DnS}: {Distill-and-Select} for Efficient and Accurate Video Indexing and Retrieval},
   author={Kordopatis-Zilos, Giorgos and Tzelepis, Christos and Papadopoulos, Symeon and Kompatsiaris, Ioannis and Patras, Ioannis},
   journal={International Journal of Computer Vision},
   year={2022}
 }
+
+@inproceedings{kordopatis2019visil,
+  title={{ViSiL}: Fine-grained Spatio-Temporal Video Similarity Learning},
+    author={Kordopatis-Zilos, Giorgos and Papadopoulos, Symeon and Patras, Ioannis and Kompatsiaris, Ioannis},
+  booktitle={Proceedings of the IEEE/CVF International Conference on Computer Vision},
+  year={2019}
+}
 ```
 
 ## Related Projects
-**[ViSiL](https://github.com/MKLab-ITI/visil)** **[FIVR-200K](https://github.com/MKLab-ITI/FIVR-200K)**
+
+**[ViSiL](https://github.com/MKLab-ITI/visil)** - here you can find our teacher model
+
+**[FIVR-200K](https://github.com/MKLab-ITI/FIVR-200K)** - download our FIVR-200K dataset
 
 ## Acknowledgements
 This work has been supported by the projects WeVerify and MediaVerse, partially funded by the European Commission under contract number 825297 and 957252, respectively, and DECSTER funded by EPSRC under contract number EP/R025290/1.
@@ -196,3 +206,4 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 ## Contact for further details about the project
 
 Giorgos Kordopatis-Zilos (georgekordopatis@iti.gr)
+
